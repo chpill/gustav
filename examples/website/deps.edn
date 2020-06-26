@@ -1,0 +1,5 @@
+{:paths ["src"]
+ :deps {chpill/gustav {:local/root "../.."}
+        hiccup {:mvn/version "1.0.5"}
+        hicada {:git/url "https://github.com/chpill/hicada"
+                :sha "0dd870c220b676a5120728bafac4c8410bff5f13"}}}

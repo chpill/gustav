@@ -1,12 +1,7 @@
 (ns gustav.web
-  (:require [clojure.string :as str]))
+  (:require [clojure.string :as str]
+            gustav.core))
 
-;; This logic should be further refined to allow generating a html string and a
-;; corresponding css string
-
-;; It could later be used to make "no-script" friendly web pages
-
-;; Move this out to a "raw web-page" specific ns?
 (defn dec-to-baseB [n B]
   (loop [output ()
          n      n]
@@ -245,11 +240,9 @@
            (map #(nth next-chars %))
            next-char-indices))))
 
-;; FORMULA IS FALSE
 (comment (s4-as-chars 100 first-chars next-chars))
 
 (def int-to-css-class #(s4-as-chars % first-chars next-chars))
-
 
 
 (comment
@@ -287,19 +280,32 @@
 
 
 
-(defn class-names [style-coll styles]
+(defn class-names [style-to-css-classes styles]
+  (->> styles
+       (map #(or (get style-to-css-classes %)
+                 (throw (ex-info (str "unknow static style: " %)
+                                 {:missing-style %}))))
+       (str/join " ")))
 
+(comment
+  (class-names {[:a 1] "a"
+                [:b 2] "b"}
+               {:a 1 :b 2})
+  (class-names {[:a 1] "a"
+                [:b 2] "b"}
+               {:a 1 :b 2 :c 3})
   )
 
 
 (defn make-web-aot-xform
   "Provides a function that will resolve static styles according to the input
-  `style-coll` and output css class names.
+  `style-to-css-classes` and output css class names.
 
-   `style-coll` may be a set or a map, or whatever that supports `get`."
-  [style-coll]
+   `style-to-css-classes` may be a set or a map, or whatever that supports `get`."
+  [style-to-css-classes]
   (fn [[tag
         {:as props :keys [style
+                          class
                           sst static-style
                           dst dynamic-style]}
         & others
@@ -307,20 +313,63 @@
 
     (let [{:keys [static dynamic]} (gustav.core/decant-styles hiccup-form)]
       (if (or static dynamic)
-        (let [rn-style
-              (let [static-keys (class-names style-coll
-                                             static)
-                    style-vec (cond-> static-keys
-                                dynamic (conj dynamic))]
-                (if (= 1 (count style-vec))
-                  (first style-vec)
-                  style-vec))
-              props' (-> props
-                         (dissoc :sst :static-style :dst :dynamic-style)
-                         (assoc :class rn-style))]
+        (let [static-style-as-css-classes (class-names style-to-css-classes
+                                                       static)
+              props' (cond-> (dissoc props :style :sst :static-style :dst :dynamic-style)
+                       dynamic (assoc :style dynamic)
+                       static (assoc :class
+                                     (cond->> static-style-as-css-classes
+                                       (not (str/blank? class)) (str class " "))))]
           (into [tag props'] others))
         hiccup-form))))
 
 
-(defn css-class-declarations [style-kvs]
-  "TODO")
+
+(comment
+
+  (def xf (make-web-aot-xform {[:flex 1] "a" [:margin 42] "b" [:color "red"] "c"}))
+
+  (xf [:div {:style {:margin 42}}])
+
+  )
+
+(defn css-class-declarations [aot-styles]
+  (->> aot-styles
+       (map (fn [[[property-kw value] class-name]]
+              (str class-name " {"
+                   (name property-kw) ": " value
+                   "}")))
+       (str/join "\n")))
+
+
+(comment
+  (let [aot-styles {[:color "red"] "A"
+                    [:color "blue"] "B"}]
+
+    (->> aot-styles
+         (map (fn [[[property-kw value] class-name]]
+                (str class-name " {"
+                     (name property-kw) ": " value
+                     "}")))
+         (str/join "\n"))
+
+    ))
+
+
+(defn style-frequencies-to-aot-classes [style-freq]
+  (->> style-freq
+       (sort-by val >)
+       (map first)
+       (reduce (fn [acc style]
+                 (assoc acc style (int-to-css-class (count acc))))
+               {})))
+
+(comment
+  (let [style-freq {[:color "red"] 2
+                    [:flex 1] 10
+                    [:padding 10] 5}]
+    (style-frequencies-to-aot-classes style-freq)))
+
+
+;; TODO
+(def dev-xform identity)

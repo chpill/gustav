@@ -144,6 +144,23 @@
       (into [tag props'] others))
     hiccup-form))
 
+(defn collect-and-pass-through-xform
+  "Takes a hiccup form as input and outputs untouched, while collecting static
+  styles as a side effect."
+  [[tag
+    {:as props :keys [style
+                      sst static-style
+                      dst dynamic-style]}
+    :as hiccup-form]]
+  ;; (clojure.pprint/pprint hiccup-form)
+  ;; (clojure.pprint/pprint (some-> hiccup-form decant-styles))
+
+  (when-let [decanted-style (decant-styles hiccup-form)]
+    (some-> decanted-style
+            :static
+            collect-static-style!))
+  hiccup-form)
+
 (comment (reset! *style-frequencies {}))
 
 ;; TODO FIXME automated tests
