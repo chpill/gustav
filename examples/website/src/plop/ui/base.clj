@@ -8,25 +8,28 @@
 
 
 (defmacro e [body]
-  (if-let [aot-styles @gustav.core/*aot-styles]
-    (hicada.compiler/compile body
-                             {:server-render? true
-                              :transform-fn (gustav.web/make-web-aot-xform aot-styles)
-                              :emit-fn (fn [a b c]
-                                         (into [a b] c))}
-                             &env)
-    (hicada.compiler/compile body
-                             {:server-render? true
-                              :transform-fn gustav.core/collect-and-pass-through-xform
-                              :emit-fn (fn [a b c]
-                                         (into [a b] c))}
-                             &env)))
+  (list
+   'hiccup.core/html
+   (if-let [aot-styles @gustav.core/*aot-styles]
+     (hicada.compiler/compile body
+                              {:server-render? true
+                               :transform-fn (gustav.web/make-web-aot-xform aot-styles)
+                               :emit-fn (fn [a b c]
+                                          (into [a b] c))}
+                              &env)
+     (hicada.compiler/compile body
+                              {:server-render? true
+                               :transform-fn #(-> %
+                                                  gustav.core/raw-collector-xform
+                                                  gustav.web/dev-xform)
+                               :emit-fn (fn [a b c]
+                                          (into [a b] c))}
+                              &env))))
 
 
 
 
 (comment
-
 
   (macroexpand-1 '(e [:p {:style {:color "red"}} "PLOP"]))
 

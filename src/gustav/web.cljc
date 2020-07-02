@@ -324,6 +324,40 @@
         hiccup-form))))
 
 
+(defn format-style-kv [[k v]]
+  (str (name k) ":" v))
+
+;; TODO FIXME "dynamic" styles cannot be formated at compile time.
+;; Some formatting code must be emitted.
+(defn format-style-attribute [static dynamic]
+  (->> (into static dynamic)
+       (map format-style-kv)
+       (interpose ";")
+       (apply str)))
+
+(comment
+  (format-style-attribute {:color "green" :padding "5px"}
+                          {:background-color "red"})
+
+  (format-style-attribute {}
+                          {:background-color "red"})
+
+  (format-style-attribute {:background-color "red"}
+                          {})
+
+  (format-style-attribute nil
+                          nil))
+
+(defn dev-xform [[tag
+                      {:as props
+                       {:keys [static dynamic]} :style}
+                      & others
+                      :as hiccup-form]]
+  (if (or static dynamic)
+    (let [props' (assoc props :style (format-style-attribute static dynamic))]
+      (into [tag props'] others))
+    hiccup-form))
+
 
 (comment
 
@@ -370,6 +404,3 @@
                     [:padding 10] 5}]
     (style-frequencies-to-aot-classes style-freq)))
 
-
-;; TODO
-(def dev-xform identity)
