@@ -370,7 +370,8 @@
 (defn css-class-declarations [aot-styles]
   (->> aot-styles
        (map (fn [[[property-kw value] class-name]]
-              (str class-name " {"
+              (str "." class-name
+                   " {"
                    (name property-kw) ": " value
                    "}")))
        (str/join "\n")))
